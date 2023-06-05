@@ -7,8 +7,12 @@ INCLUDE(CheckLibraryExists)
 # the platform doesn't support lock-free atomics.
 
 function(check_working_cxx_atomics varname)
-  set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
-  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -std=c++20")
+  if (CMAKE_REQUIRED_FLAGS)
+    set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+  else()
+    set(OLD_CMAKE_REQUIRED_FLAGS "")
+  endif()
+
   CHECK_CXX_SOURCE_COMPILES("
 #include <atomic>
 std::atomic<int> x;

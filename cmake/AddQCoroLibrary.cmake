@@ -5,7 +5,6 @@
 include(GenerateHeaders)
 include(GenerateExportHeader)
 include(GenerateModuleConfigFile)
-include(ECMGeneratePriFile)
 
 function(add_qcoro_library)
     function(prefix_libraries)
@@ -164,15 +163,6 @@ function(add_qcoro_library)
         set(egp_INTERFACE "INTERFACE")
     endif()
 
-    ecm_generate_pri_file(
-        ${egp_INTERFACE}
-        BASE_NAME QCoro${LIB_NAME}
-        LIB_NAME ${target_name}
-        VERSION ${qcoro_VERSION}
-        INCLUDE_INSTALL_DIRS ${QCORO_INSTALL_INCLUDEDIR}/qcoro;${QCORO_INSTALL_INCLUDEDIR}/QCoro
-        DEPS "${qmake_qt_deps} ${qmake_qcoro_deps}"
-    )
-
     install(
         TARGETS ${target_name}
         EXPORT ${target_name}Targets
@@ -205,11 +195,6 @@ function(add_qcoro_library)
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${target_name}"
         FILE "${target_name}Targets.cmake"
         NAMESPACE ${QCORO_TARGET_PREFIX}::
-        COMPONENT Devel
-    )
-    install(
-        FILES "${CMAKE_CURRENT_BINARY_DIR}/qt_QCoro${LIB_NAME}.pri"
-        DESTINATION "${ECM_MKSPECS_INSTALL_DIR}"
         COMPONENT Devel
     )
 endfunction()

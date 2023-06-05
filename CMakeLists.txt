@@ -3,7 +3,7 @@ set(qcoro_VERSION 0.9.80)
 set(qcoro_SOVERSION 0)
 project(qcoro LANGUAGES CXX VERSION ${qcoro_VERSION})
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
 include(CTest)
