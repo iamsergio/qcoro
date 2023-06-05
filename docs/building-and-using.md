@@ -14,7 +14,7 @@ QCoro to customize the build:
 * `-DQCORO_BUILD_EXAMPLES` - whether to build examples or not (`ON` by default).
 * `-DQCORO_ENABLE_ASAN` - whether to build QCoro with AddressSanitizer (`OFF` by default).
 * `-DBUILD_SHARED_LIBS` - whether to build QCoro as a shared library (`OFF` by default).
-* `-DBUILD_TESTING` - whether to build tests (`ON` by default).
+* `-DQCORO_BUILD_TESTING` - whether to build tests (`ON` by default).
 * `-DUSE_QT_VERSION` - set to `5` or `6` to force a particular version of Qt. When not set the highest available version is used.
 * `-DQCORO_WITH_QTDBUS` - whether to compile support for QtDBus (`ON` by default).
 * `-DQCORO_WITH_QTNETWORK` - whether to compile support for QtNetwork (`ON` by default).

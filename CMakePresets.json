@@ -9,7 +9,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BUILD_TESTING": "OFF",
+                "QCORO_BUILD_TESTING": "OFF",
                 "QCORO_BUILD_EXAMPLES": "OFF",
                 "QCORO_WITH_QTQUICK": "OFF",
                 "QCORO_WITH_QML": "OFF",
