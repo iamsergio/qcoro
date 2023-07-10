@@ -4,19 +4,18 @@
 
 #pragma once
 
-#include "coroutine.h"
 #include "concepts_p.h"
+#include "coroutine.h"
 
 #include <atomic>
-#include <variant>
 #include <memory>
-#include <type_traits>
 #include <optional>
+#include <type_traits>
+#include <variant>
 
-#include <QDebug>
+#include <QCoreApplication>
 #include <QEventLoop>
 #include <QObject>
-#include <QCoreApplication>
 #include <QPointer>
 
 namespace QCoro {
