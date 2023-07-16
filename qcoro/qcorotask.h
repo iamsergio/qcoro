@@ -13,7 +13,6 @@
 #include <type_traits>
 #include <variant>
 
-#include <QCoreApplication>
 #include <QEventLoop>
 #include <QObject>
 #include <QPointer>

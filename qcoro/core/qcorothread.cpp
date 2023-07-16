@@ -5,6 +5,8 @@
 #include "qcorothread.h"
 #include "qcorosignal.h"
 
+#include <QCoreApplication>
+#include <QEvent>
 #include <QThread>
 
 using namespace QCoro;
