@@ -10,3 +10,6 @@ compile_commands.json
 # Python (from mkdocs)
 __pycache__
 venv
+
+
+.cache
