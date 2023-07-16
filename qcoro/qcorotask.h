@@ -8,14 +8,12 @@
 #include "coroutine.h"
 
 #include <atomic>
+#include <cassert>
 #include <memory>
 #include <optional>
 #include <type_traits>
 #include <variant>
-
-#include <QEventLoop>
-#include <QObject>
-#include <QPointer>
+#include <vector>
 
 namespace QCoro {
 
@@ -204,7 +202,7 @@ public:
 
     //! If the type T is already an awaitable, then just forward it as it is.
     template<Awaitable T>
-    auto && await_transform(T &&awaitable) {
+    auto &&await_transform(T &&awaitable) {
         return std::forward<T>(awaitable);
     }
 
@@ -284,12 +282,14 @@ public:
         mValue = value;
     }
 
-    template<typename U> requires QCoro::concepts::constructible_from<T, U>
+    template<typename U>
+        requires QCoro::concepts::constructible_from<T, U>
     void return_value(U &&value) noexcept {
         mValue = std::move(value);
     }
 
-    template<typename U> requires QCoro::concepts::constructible_from<T, U>
+    template<typename U>
+        requires QCoro::concepts::constructible_from<T, U>
     void return_value(const U &value) noexcept {
         mValue = value;
     }
@@ -301,7 +301,7 @@ public:
      */
     T &result() & {
         if (std::holds_alternative<std::exception_ptr>(mValue)) {
-            Q_ASSERT(std::get<std::exception_ptr>(mValue) != nullptr);
+            assert(std::get<std::exception_ptr>(mValue) != nullptr);
             std::rethrow_exception(std::get<std::exception_ptr>(mValue));
         }
 
@@ -311,7 +311,7 @@ public:
     //! \copydoc T &QCoro::TaskPromise<T>::result() &
     T &&result() && {
         if (std::holds_alternative<std::exception_ptr>(mValue)) {
-            Q_ASSERT(std::get<std::exception_ptr>(mValue) != nullptr);
+            assert(std::get<std::exception_ptr>(mValue) != nullptr);
             std::rethrow_exception(std::get<std::exception_ptr>(mValue));
         }
 
@@ -431,7 +431,6 @@ struct isTask<QCoro::Task<T>> : std::true_type {
 template<typename T>
 constexpr bool isTask_v = isTask<T>::value;
 
-
 } // namespace detail
 
 /*! \endcond */
@@ -498,7 +497,8 @@ public:
 
     //! Destructor.
     ~Task() {
-        if (!mCoroutine) return;
+        if (!mCoroutine)
+            return;
 
         // The coroutine handle will be destroyed only after TaskFinalSuspend
         if (mCoroutine.promise().setDestroyHandle()) {
@@ -534,7 +534,7 @@ public:
              * \return the result from the coroutine's promise, factically the
              * value co_returned by the coroutine. */
             auto await_resume() {
-                Q_ASSERT(this->mAwaitedCoroutine != nullptr);
+                assert(this->mAwaitedCoroutine != nullptr);
                 if constexpr (!std::is_void_v<T>) {
                     return std::move(this->mAwaitedCoroutine.promise().result());
                 } else {
@@ -564,38 +564,39 @@ public:
      * returns an awaitable (Task<R>) then the result of then is the awaitable.
      */
     template<typename ThenCallback>
-    requires (std::is_invocable_v<ThenCallback> || (!std::is_void_v<T> && std::is_invocable_v<ThenCallback, T>))
+        requires(std::is_invocable_v<ThenCallback> ||
+                 (!std::is_void_v<T> && std::is_invocable_v<ThenCallback, T>))
     auto then(ThenCallback &&callback) {
         // Provide a custom error handler that simply re-throws the current exception
         return thenImpl(std::forward<ThenCallback>(callback), [](const auto &) { throw; });
     }
 
     template<typename ThenCallback, typename ErrorCallback>
-    requires ((std::is_invocable_v<ThenCallback> || (!std::is_void_v<T> && std::is_invocable_v<ThenCallback, T>)) &&
-               std::is_invocable_v<ErrorCallback, const std::exception &>)
+        requires((std::is_invocable_v<ThenCallback> ||
+                  (!std::is_void_v<T> && std::is_invocable_v<ThenCallback, T>)) &&
+                 std::is_invocable_v<ErrorCallback, const std::exception &>)
     auto then(ThenCallback &&callback, ErrorCallback &&errorCallback) {
-        return thenImpl(std::forward<ThenCallback>(callback), std::forward<ErrorCallback>(errorCallback));
+        return thenImpl(std::forward<ThenCallback>(callback),
+                        std::forward<ErrorCallback>(errorCallback));
     }
 
 private:
-    template<typename ThenCallback, typename ... Args>
-    auto invokeCb(ThenCallback &&callback, [[maybe_unused]] Args && ... args) {
-        if constexpr (std::is_invocable_v<ThenCallback, Args ...>) {
-            return callback(std::forward<Args>(args) ...);
+    template<typename ThenCallback, typename... Args>
+    auto invokeCb(ThenCallback &&callback, [[maybe_unused]] Args &&...args) {
+        if constexpr (std::is_invocable_v<ThenCallback, Args...>) {
+            return callback(std::forward<Args>(args)...);
         } else {
             return callback();
         }
     }
 
     template<typename ThenCallback, typename Arg>
-    struct cb_invoke_result: std::conditional_t<
-        std::is_invocable_v<ThenCallback>,
-            std::invoke_result<ThenCallback>,
-            std::invoke_result<ThenCallback, Arg>
-        > {};
+    struct cb_invoke_result
+        : std::conditional_t<std::is_invocable_v<ThenCallback>, std::invoke_result<ThenCallback>,
+                             std::invoke_result<ThenCallback, Arg>> {};
 
     template<typename ThenCallback>
-    struct cb_invoke_result<ThenCallback, void>: std::invoke_result<ThenCallback> {};
+    struct cb_invoke_result<ThenCallback, void> : std::invoke_result<ThenCallback> {};
 
     template<typename ThenCallback, typename Arg>
     using cb_invoke_result_t = typename cb_invoke_result<ThenCallback, Arg>::type;
@@ -609,8 +610,10 @@ private:
         }
     }
 
-    template<typename ThenCallback, typename ErrorCallback, typename R = cb_invoke_result_t<ThenCallback, T>>
-    auto thenImpl(ThenCallback &&thenCallback, ErrorCallback &&errorCallback) -> std::conditional_t<detail::isTask_v<R>, R, Task<R>> {
+    template<typename ThenCallback, typename ErrorCallback,
+             typename R = cb_invoke_result_t<ThenCallback, T>>
+    auto thenImpl(ThenCallback &&thenCallback, ErrorCallback &&errorCallback)
+        -> std::conditional_t<detail::isTask_v<R>, R, Task<R>> {
         auto thenCb = std::forward<ThenCallback>(thenCallback);
         auto errCb = std::forward<ErrorCallback>(errorCallback);
         if constexpr (std::is_void_v<value_type>) {
@@ -659,180 +662,60 @@ Task<void> inline TaskPromise<void>::get_return_object() noexcept {
     return Task<void>{std::coroutine_handle<TaskPromise>::from_promise(*this)};
 }
 
-
-
-template <typename T>
-concept TaskConvertible = requires(T v, TaskPromiseBase t)
-{
-    { t.await_transform(v) };
-};
+template<typename T>
+concept TaskConvertible = requires(T v, TaskPromiseBase t) {
+                              { t.await_transform(v) };
+                          };
 
 template<typename T>
 struct awaitable_return_type {
-  using type = std::decay_t<decltype(std::declval<T>().await_resume())>;
+    using type = std::decay_t<decltype(std::declval<T>().await_resume())>;
 };
 
 template<QCoro::detail::has_member_operator_coawait T>
 struct awaitable_return_type<T> {
-    using type = std::decay_t<typename awaitable_return_type<decltype(std::declval<T>().operator co_await())>::type>;
+    using type = std::decay_t<
+        typename awaitable_return_type<decltype(std::declval<T>().operator co_await())>::type>;
 };
 
 template<QCoro::detail::has_nonmember_operator_coawait T>
 struct awaitable_return_type<T> {
-    using type = std::decay_t<typename awaitable_return_type<decltype(operator co_await(std::declval<T>()))>::type>;
+    using type = std::decay_t<
+        typename awaitable_return_type<decltype(operator co_await(std::declval<T>()))>::type>;
 };
 
 template<Awaitable Awaitable>
 using awaitable_return_type_t = typename detail::awaitable_return_type<Awaitable>::type;
 
-template <typename Awaitable>
-requires TaskConvertible<Awaitable>
-using convertible_awaitable_return_type_t = typename detail::awaitable_return_type<decltype(std::declval<TaskPromiseBase>().await_transform(Awaitable()))>::type;
+template<typename Awaitable>
+    requires TaskConvertible<Awaitable>
+using convertible_awaitable_return_type_t =
+    typename detail::awaitable_return_type<decltype(std::declval<TaskPromiseBase>().await_transform(
+        Awaitable()))>::type;
 
-template <typename Awaitable>
-requires TaskConvertible<Awaitable>
-auto toTask(Awaitable &&future) -> QCoro::Task<detail::convertible_awaitable_return_type_t<Awaitable>> {
+template<typename Awaitable>
+    requires TaskConvertible<Awaitable>
+auto toTask(Awaitable &&future)
+    -> QCoro::Task<detail::convertible_awaitable_return_type_t<Awaitable>> {
     co_return co_await future;
 }
 
 struct WaitContext {
-    QEventLoop loop;
+    // QEventLoop loop;
     bool coroutineFinished = false;
     std::exception_ptr exception;
 };
 
-//! Helper class to run a coroutine in a nested event loop.
-/*!
- * We cannot just use QTimer or QMetaObject::invokeMethod() to schedule the func lambda to be
- * invoked from an event loop, because internally, Qt deallocates some structures when the
- * lambda returns, which causes invalid memory access and potentially double-free corruption
- * because the coroutine returns twice - once on suspend and once when it really finishes.
- * So instead we do basically what Qt does internally, but we make sure to not delete th
- * QFunctorSlotObjectWithNoArgs until after the event loop quits.
- */
-template<Awaitable Awaitable>
-Task<> runCoroutine(WaitContext &context, Awaitable &&awaitable) {
-    try {
-        co_await awaitable;
-    } catch (...) {
-        context.exception = std::current_exception();
-    }
-    context.coroutineFinished = true;
-    context.loop.quit();
-}
-
-template<typename T, Awaitable Awaitable>
-Task<> runCoroutine(WaitContext &context, T &result, Awaitable &&awaitable) {
-    try {
-        result = co_await awaitable;
-    } catch (...) {
-        context.exception = std::current_exception();
-    }
-    context.coroutineFinished = true;
-    context.loop.quit();
-}
-
-template<typename T, Awaitable Awaitable>
-T waitFor(Awaitable &&awaitable) {
-    WaitContext context;
-    if constexpr (std::is_void_v<T>) {
-        runCoroutine(context, std::forward<Awaitable>(awaitable));
-        if (!context.coroutineFinished) {
-            context.loop.exec();
-        }
-        if (context.exception) {
-            std::rethrow_exception(context.exception);
-        }
-    } else {
-        T result;
-        runCoroutine(context, result, std::forward<Awaitable>(awaitable));
-        if (!context.coroutineFinished) {
-            context.loop.exec();
-        }
-        if (context.exception) {
-            std::rethrow_exception(context.exception);
-        }
-        return result;
-    }
-}
-
 } // namespace detail
 
-//! Waits for a coroutine to complete in a blocking manner.
-/*!
- * Sometimes you may need to wait for a coroutine to finish  without co_awaiting it - that is,
- * you want to wait for the coroutine in a blocking mode. This function does exactly that.
- * The function creates a nested QEventLoop and executes it until the coroutine has finished.
- *
- * \param task Coroutine to blockingly wait for.
- * \returns Result of the coroutine.
- */
-template<typename T>
-inline T waitFor(QCoro::Task<T> &task) {
-    return detail::waitFor<T>(std::forward<QCoro::Task<T>>(task));
-}
-
-// \overload
-template<typename T>
-inline T waitFor(QCoro::Task<T> &&task) {
-    return detail::waitFor<T>(std::forward<QCoro::Task<T>>(task));
-}
-
-template<Awaitable Awaitable>
-inline auto waitFor(Awaitable &&awaitable) {
-    return detail::waitFor<detail::awaitable_return_type_t<Awaitable>>(std::forward<Awaitable>(awaitable));
-}
-
-//! Connect a callback to be called when the asynchronous task finishes.
-/*!
- * Allows to register a callback to be called only when the context object
- * still exists when the task finishes.
- *
- * In contrast to the then function, the result of connect can not be co_awaited.
- *
- * @param context A QObject that still needs to exist when the task finishes in order for the callback to be invoked.
- * @param func The function that will be called when the task finishes.
- *        For void tasks, it needs to have no arguments.
- *        For all other types, it takes a value of the type as single argument.
- */
-template <typename T, typename QObjectSubclass, typename Callback>
-requires std::is_invocable_v<Callback> || std::is_invocable_v<Callback, T> || std::is_invocable_v<Callback, QObjectSubclass *> || std::is_invocable_v<Callback, QObjectSubclass *, T>
-void connect(QCoro::Task<T> &&task, QObjectSubclass *context, Callback func) {
-    QPointer ctxWatcher = context;
-    if constexpr (std::is_same_v<T, void>) {
-        task.then([ctxWatcher, func = std::move(func)]() {
-            if (ctxWatcher) {
-                if constexpr (std::is_member_function_pointer_v<Callback>) {
-                    (ctxWatcher->*func)();
-                } else {
-                    func();
-                }
-            }
-        });
-    } else {
-        task.then([ctxWatcher, func = std::move(func)](auto &&value) {
-            if (ctxWatcher) {
-                if constexpr (std::is_invocable_v<Callback, QObjectSubclass, T>) {
-                    (ctxWatcher->*func)(std::forward<decltype(value)>(value));
-                } else if constexpr (std::is_invocable_v<Callback, T>) {
-                    func(std::forward<decltype(value)>(value));
-                } else {
-                    Q_UNUSED(value);
-                    if constexpr (std::is_member_function_pointer_v<Callback>) {
-                        (ctxWatcher->*func)();
-                    } else {
-                        func();
-                    }
-                }
-            }
-        });
-    }
-}
-
-template <typename T, typename QObjectSubclass, typename Callback>
-requires detail::TaskConvertible<T>
-        && (std::is_invocable_v<Callback> || std::is_invocable_v<Callback, detail::convertible_awaitable_return_type_t<T>> || std::is_invocable_v<Callback, QObjectSubclass *> || std::is_invocable_v<Callback, QObjectSubclass *, detail::convertible_awaitable_return_type_t<T>>)
-        && (!detail::isTask_v<T>)
+template<typename T, typename QObjectSubclass, typename Callback>
+    requires detail::TaskConvertible<T> &&
+             (std::is_invocable_v<Callback> ||
+              std::is_invocable_v<Callback, detail::convertible_awaitable_return_type_t<T>> ||
+              std::is_invocable_v<Callback, QObjectSubclass *> ||
+              std::is_invocable_v<Callback, QObjectSubclass *,
+                                  detail::convertible_awaitable_return_type_t<T>>) &&
+             (!detail::isTask_v<T>)
 void connect(T &&future, QObjectSubclass *context, Callback func) {
     auto task = detail::toTask(std::move(future));
     connect(std::move(task), context, func);
